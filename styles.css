@@ -1,0 +1,245 @@
+:root {
+  --fondo: #f5f6f8;
+  --superficie: #ffffff;
+  --texto: #1b1f24;
+  --texto-suave: #5c6670;
+  --borde: #dde1e6;
+  --borde-oscuro: #bfc7d0;
+  --cabecera-fondo: #eef1f5;
+  --cabecera-texto: #3c4650;
+  --acento: #2f5d9e;
+  --acento-suave: #e8eef7;
+  --sin-valor: #8d97a1;
+  --badge-texto-fondo: #e3ecf8;
+  --badge-texto-texto: #24507f;
+  --badge-imagen-fondo: #e0f0e6;
+  --badge-imagen-texto: #2c6b40;
+  --badge-audio-fondo: #fbeeda;
+  --badge-audio-texto: #8a5a17;
+  --badge-video-fondo: #f3e2ec;
+  --badge-video-texto: #7c3660;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 24px 20px 40px;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.cabecera-pagina {
+  max-width: 1400px;
+  margin: 0 auto 16px;
+}
+
+.cabecera-pagina h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.aviso-datos {
+  margin: 0;
+  color: var(--texto-suave);
+  font-size: 13px;
+}
+
+.contenido {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+}
+
+.leyenda-titulo {
+  color: var(--texto-suave);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.leyenda-entrada {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.leyenda-nombre {
+  color: var(--texto);
+  font-size: 13px;
+}
+
+.tabla-contenedor {
+  overflow-x: auto;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+}
+
+.tabla-modelos {
+  width: 100%;
+  min-width: 1000px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabla-modelos th,
+.tabla-modelos td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--borde);
+  white-space: nowrap;
+}
+
+.tabla-modelos thead th {
+  background: var(--cabecera-fondo);
+  color: var(--cabecera-texto);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  vertical-align: bottom;
+}
+
+.tabla-modelos thead tr:first-child th {
+  border-bottom: 1px solid var(--borde-oscuro);
+  text-align: center;
+}
+
+.tabla-modelos thead tr:last-child th {
+  border-bottom: 1px solid var(--borde-oscuro);
+}
+
+.col-grupo {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+
+.col-modelo,
+.celda-modelo {
+  text-align: left;
+}
+
+.celda-modelo {
+  background: var(--superficie);
+  color: var(--texto);
+  font-weight: 500;
+}
+
+.celda-precio,
+.celda-ttft,
+.celda-tokens,
+.celda-coste {
+  text-align: right;
+}
+
+.celda-modalidades {
+  text-align: center;
+  min-width: 72px;
+}
+
+.tabla-modelos tbody tr:last-child th,
+.tabla-modelos tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.tabla-modelos tbody tr:hover th,
+.tabla-modelos tbody tr:hover td {
+  background: var(--acento-suave);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 0 2px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
+.badge--texto {
+  background: var(--badge-texto-fondo);
+  color: var(--badge-texto-texto);
+}
+
+.badge--imagen {
+  background: var(--badge-imagen-fondo);
+  color: var(--badge-imagen-texto);
+}
+
+.badge--audio {
+  background: var(--badge-audio-fondo);
+  color: var(--badge-audio-texto);
+}
+
+.badge--video {
+  background: var(--badge-video-fondo);
+  color: var(--badge-video-texto);
+}
+
+.vacio {
+  color: var(--sin-valor);
+  cursor: help;
+}
+
+.col-precio,
+.col-ttft,
+.col-tokens,
+.col-coste {
+  text-align: right;
+}
+
+.th-boton {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.th-boton:hover {
+  color: var(--acento);
+}
+
+.th-boton:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.th-orden {
+  font-size: 9px;
+  line-height: 1;
+}
+
+th.es-activa {
+  background: var(--acento-suave);
+  color: var(--acento);
+}
