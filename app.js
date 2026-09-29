@@ -1,8 +1,8 @@
 const SIGLAS = {
-  texto: { letra: 'T', etiqueta: 'Texto' },
-  imagen: { letra: 'I', etiqueta: 'Imagen' },
-  audio: { letra: 'A', etiqueta: 'Audio' },
-  video: { letra: 'V', etiqueta: 'Video' },
+  texto: { etiqueta: 'Texto' },
+  imagen: { etiqueta: 'Imagen' },
+  audio: { etiqueta: 'Audio' },
+  video: { etiqueta: 'Video' },
 };
 
 const MODELOS = [
@@ -233,8 +233,7 @@ function crearBadge(tipo) {
   const sigla = SIGLAS[tipo];
   const badge = document.createElement('span');
   badge.className = 'badge badge--' + tipo;
-  badge.textContent = sigla.letra;
-  badge.title = sigla.etiqueta;
+  badge.textContent = sigla.etiqueta;
   return badge;
 }
 
@@ -352,38 +351,98 @@ function crearCabecera() {
   return thead;
 }
 
-function renderLeyenda(contenedor) {
-  contenedor.replaceChildren();
-  const titulo = document.createElement('span');
-  titulo.className = 'leyenda-titulo';
-  titulo.textContent = 'Leyenda:';
-  contenedor.appendChild(titulo);
-  Object.entries(SIGLAS).forEach(([tipo, sigla]) => {
-    const entrada = document.createElement('span');
-    entrada.className = 'leyenda-entrada';
-    entrada.appendChild(crearBadge(tipo));
-    const nombre = document.createElement('span');
-    nombre.className = 'leyenda-nombre';
-    nombre.textContent = sigla.etiqueta;
-    entrada.appendChild(nombre);
-    contenedor.appendChild(entrada);
-  });
+function etiquetaModalidad(tipo) {
+  return SIGLAS[tipo] ? SIGLAS[tipo].etiqueta : tipo;
+}
+
+function criteriosActivos() {
+  const criterios = [];
+  if (filtros.texto) criterios.push('Nombre: "' + filtros.texto + '"');
+  if (filtros.in !== TODAS) criterios.push('Entrada: ' + etiquetaModalidad(filtros.in));
+  if (filtros.out !== TODAS) criterios.push('Salida: ' + etiquetaModalidad(filtros.out));
+  return criterios;
+}
+
+function crearMensajeSinCoincidencias() {
+  const mensaje = document.createElement('div');
+  mensaje.className = 'sin-coincidencias';
+
+  const titulo = document.createElement('p');
+  titulo.className = 'sin-coincidencias-titulo';
+  titulo.textContent = 'Ningún modelo coincide con los filtros activos';
+  mensaje.appendChild(titulo);
+
+  const criterios = criteriosActivos();
+  if (criterios.length > 0) {
+    const detalle = document.createElement('p');
+    detalle.className = 'sin-coincidencias-criterios';
+    detalle.textContent = 'Filtros activos: ' + criterios.join(' · ');
+    mensaje.appendChild(detalle);
+  }
+
+  const boton = document.createElement('button');
+  boton.type = 'button';
+  boton.className = 'boton-filtro';
+  boton.textContent = 'Limpiar filtros';
+  boton.addEventListener('click', limpiarFiltros);
+  mensaje.appendChild(boton);
+
+  return mensaje;
+}
+
+function crearFilaSinCoincidencias() {
+  const fila = document.createElement('tr');
+  const celda = document.createElement('td');
+  celda.className = 'celda-sin-coincidencias';
+  celda.colSpan = HOJAS.length + 1;
+  celda.appendChild(crearMensajeSinCoincidencias());
+  fila.appendChild(celda);
+  return fila;
 }
 
 function renderTabla(contenedor, modelos) {
   contenedor.replaceChildren();
   contenedor.appendChild(crearCabecera());
   const tbody = document.createElement('tbody');
-  modelos.forEach(modelo => tbody.appendChild(crearFila(modelo)));
+  if (modelos.length === 0) {
+    tbody.appendChild(crearFilaSinCoincidencias());
+  } else {
+    modelos.forEach(modelo => tbody.appendChild(crearFila(modelo)));
+  }
   contenedor.appendChild(tbody);
 }
 
+function renderContador(visibles) {
+  const contador = document.getElementById('contador-modelos');
+  contador.textContent = visibles.length + ' de ' + MODELOS.length + ' modelos';
+}
+
 function render() {
-  renderLeyenda(document.getElementById('leyenda'));
-  renderTabla(document.getElementById('tabla-modelos'), modelosVisibles());
+  const visibles = modelosVisibles();
+  renderContador(visibles);
+  renderTabla(document.getElementById('tabla-modelos'), visibles);
 }
 
 const orden = { columna: null, direccion: 'asc' };
+
+const TODAS = 'todas';
+
+const filtros = { texto: '', in: TODAS, out: TODAS };
+
+function coincideConNombre(modelo) {
+  if (!filtros.texto) return true;
+  return modelo.nombre.toLowerCase().includes(filtros.texto.toLowerCase());
+}
+
+function coincideConModalidadIn(modelo) {
+  if (filtros.in === TODAS) return true;
+  return modelo.modalidadesIn.includes(filtros.in);
+}
+
+function coincideConModalidadOut(modelo) {
+  if (filtros.out === TODAS) return true;
+  return modelo.modalidadesOut.includes(filtros.out);
+}
 
 function compararPorOrden(uno, otro) {
   const valorUno = valorColumna(uno, orden.columna);
@@ -397,8 +456,14 @@ function compararPorOrden(uno, otro) {
 }
 
 function modelosVisibles() {
-  if (!orden.columna) return MODELOS.slice();
-  return MODELOS.slice().sort(compararPorOrden);
+  const filtrados = MODELOS.filter(
+    modelo =>
+      coincideConNombre(modelo) &&
+      coincideConModalidadIn(modelo) &&
+      coincideConModalidadOut(modelo)
+  );
+  if (!orden.columna) return filtrados;
+  return filtrados.sort(compararPorOrden);
 }
 
 function alternarOrden(clave) {
@@ -417,8 +482,48 @@ function alPulsarCabecera(evento) {
   render();
 }
 
+function poblarOpcionesModalidad(select) {
+  Object.entries(SIGLAS).forEach(([tipo, sigla]) => {
+    const opcion = document.createElement('option');
+    opcion.value = tipo;
+    opcion.textContent = sigla.etiqueta;
+    select.appendChild(opcion);
+  });
+}
+
+function alEscribirNombre(evento) {
+  filtros.texto = evento.target.value;
+  render();
+}
+
+function alElegirModalidadIn(evento) {
+  filtros.in = evento.target.value;
+  render();
+}
+
+function alElegirModalidadOut(evento) {
+  filtros.out = evento.target.value;
+  render();
+}
+
+function limpiarFiltros() {
+  filtros.texto = '';
+  filtros.in = TODAS;
+  filtros.out = TODAS;
+  document.getElementById('filtro-nombre').value = '';
+  document.getElementById('filtro-in').value = TODAS;
+  document.getElementById('filtro-out').value = TODAS;
+  render();
+}
+
 function iniciar() {
   document.getElementById('tabla-modelos').addEventListener('click', alPulsarCabecera);
+  poblarOpcionesModalidad(document.getElementById('filtro-in'));
+  poblarOpcionesModalidad(document.getElementById('filtro-out'));
+  document.getElementById('filtro-nombre').addEventListener('input', alEscribirNombre);
+  document.getElementById('filtro-in').addEventListener('change', alElegirModalidadIn);
+  document.getElementById('filtro-out').addEventListener('change', alElegirModalidadOut);
+  document.getElementById('limpiar-filtros').addEventListener('click', limpiarFiltros);
   render();
 }
 

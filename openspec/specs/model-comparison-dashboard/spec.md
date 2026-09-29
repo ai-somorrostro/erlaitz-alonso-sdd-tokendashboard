@@ -7,11 +7,15 @@ Permite comparar de un vistazo los modelos de lenguaje open source más relevant
 ## Requirements
 
 ### Requirement: Tabla comparativa de modelos
-El sistema SHALL presentar una tabla que liste los modelos open source a comparar, con una fila por modelo, mostrando nombre, precio de entrada y precio de salida por millón de tokens, TTFT en milisegundos, modalidades de entrada, modalidades de salida, y el consumo del equipo en tokens y en coste, para las ventanas diaria y semanal.
+El sistema SHALL presentar una tabla que liste los modelos open source a comparar, con una fila por modelo cuando no hay criterios de filtrado activos, mostrando nombre, precio de entrada y precio de salida por millón de tokens, TTFT en milisegundos, modalidades de entrada, modalidades de salida, y el consumo del equipo en tokens y en coste, para las ventanas diaria y semanal.
 
 #### Scenario: La tabla muestra una fila por modelo
-- **WHEN** se carga el dashboard
+- **WHEN** se carga el dashboard y no hay criterios de filtrado activos
 - **THEN** la tabla contiene exactamente una fila por cada modelo del conjunto de datos
+
+#### Scenario: El filtrado reduce las filas sin perder columnas
+- **WHEN** hay criterios de filtrado activos
+- **THEN** la tabla conserva el mismo conjunto de columnas y solo varía el número de filas, de modo que el filtrado no oculta ninguna dimensión de comparación
 
 #### Scenario: Cada fila expone todas las dimensiones de comparación
 - **WHEN** se observa una fila de la tabla
@@ -45,11 +49,15 @@ El sistema SHALL mostrar el consumo del equipo en dos unidades simultáneas, tok
 - **THEN** el consumo semanal mostrado es mayor o igual que el diario, ya que la semana incluye ese día
 
 ### Requirement: Modalidades representadas por badges
-El sistema SHALL representar las modalidades de entrada y de salida de cada modelo como un conjunto de badges compactos, uno por tipo de contenido soportado, en lugar de texto descriptivo, de modo que los modelos se puedan comparar por patrón visual.
+El sistema SHALL representar las modalidades de entrada y de salida de cada modelo como un conjunto de badges compactos, uno por tipo de contenido soportado, rotulados con el nombre completo del tipo de contenido y no con una sigla de una letra, de modo que las modalidades se lean sin información previa y se puedan seguir comparando por patrón visual.
 
 #### Scenario: Un modelo con varias modalidades muestra varios badges
 - **WHEN** un modelo admite más de un tipo de contenido
-- **THEN** su celda de modalidades de entrada muestra un badge por cada tipo admitido, sin truncar ningún badge válido por muy que el modelo admita más de dos
+- **THEN** su celda de modalidades de entrada muestra un badge por cada tipo admitido, sin truncar ni fusionar ningún badge válido por muy que el modelo admita más de dos
+
+#### Scenario: Cada badge muestra el nombre completo del tipo
+- **WHEN** se observa un badge de modalidad en cualquier celda
+- **THEN** muestra el nombre completo del tipo de contenido que representa, sin necesidad de interpretarlo con una clave externa ni de pasar el cursor por encima
 
 #### Scenario: Las modalidades de entrada y salida ocupan celdas separadas
 - **WHEN** un modelo admite un tipo de contenido como entrada pero no lo devuelve
@@ -58,21 +66,6 @@ El sistema SHALL representar las modalidades de entrada y de salida de cada mode
 #### Scenario: Un modelo sin modalidades de entrada muestra el vacío de forma explícita
 - **WHEN** un modelo no declara ninguna modalidad de entrada
 - **THEN** su celda de entrada muestra un marcador explícito de que no acepta contenido, en lugar de una celda vacía indistinguible de un fallo de carga
-
-### Requirement: Leyenda de modalidades visible en pantalla
-El sistema SHALL mostrar en la propia pantalla, visible sin desplazamiento y por encima de la tabla, una leyenda que indique el significado de cada letra de modalidad usada en los badges, de modo que el significado sea deducible sin interacción.
-
-#### Scenario: La leyenda es visible sin desplazarse
-- **WHEN** se carga el dashboard en una pantalla de monitor estándar
-- **THEN** la leyenda de modalidades aparece dentro del área visible junto a la tabla, sin necesidad de hacer scroll
-
-#### Scenario: La leyenda cubre todas las letras presentes en la tabla
-- **WHEN** un badge aparece en alguna celda de la tabla
-- **THEN** existe en la leyenda una entrada que explica ese mismo badge
-
-#### Scenario: La leyenda incluye los tipos aún no usados por el conjunto de datos
-- **WHEN** ningún modelo del conjunto de datos utiliza un tipo de contenido
-- **THEN** ese tipo sigue apareciendo en la leyenda, de modo que el vocabulario de siglas no cambia al añadir modelos
 
 ### Requirement: Ordenación por columna
 El sistema SHALL permitir reordenar las filas por el valor de cualquier columna numérica al pulsar su cabecera, alternando entre orden ascendente y descendente, de modo que se pueda localizar rápidamente el modelo más barato o el más rápido.
@@ -96,6 +89,57 @@ El sistema SHALL permitir reordenar las filas por el valor de cualquier columna 
 #### Scenario: El estado de ordenación es identificable
 - **WHEN** existe una columna activa
 - **THEN** se indica visualmente qué columna está ordenando y en qué sentido, de modo que el usuario no tiene que deducirlo de las posiciones
+
+### Requirement: Filtrado de filas por nombre y modalidad
+El sistema SHALL permitir acotar las filas visibles mediante un criterio de búsqueda sobre el nombre del modelo y mediante un criterio de modalidad para la entrada y otro para la salida, de manera independiente, de modo que el usuario pueda reducir la tabla a los modelos que le interesan sin perder de vista el conjunto completo. Los criterios activos SHALL ser visibles en pantalla y reversibles.
+
+#### Scenario: La búsqueda por nombre reduce las filas
+- **WHEN** el usuario escribe texto en el campo de búsqueda de nombre de modelo
+- **THEN** solo permanecen visibles los modelos cuyo nombre contiene ese texto, sin distinguir mayúsculas de minúsculas
+
+#### Scenario: El filtro de modalidad de entrada y el de salida son independientes
+- **WHEN** el usuario selecciona un tipo de contenido en el filtro de entrada
+- **THEN** solo permanecen visibles los modelos que aceptan ese tipo como entrada, y los tipos de salida de esos modelos no influyen en la decisión
+
+#### Scenario: El filtro de salida no se deduce del de entrada
+- **WHEN** el usuario selecciona un tipo de contenido en el filtro de salida
+- **THEN** solo permanecen visibles los modelos que producen ese tipo como salida, aunque ese mismo tipo no se acepte como entrada en ninguno de ellos
+
+#### Scenario: Los criterios se combinan acumulativamente
+- **WHEN** hay un texto de búsqueda activo y un tipo de modalidad seleccionado
+- **THEN** solo permanecen visibles los modelos que cumplen los dos criterios a la vez, y no los que cumplen solo uno de ellos
+
+#### Scenario: El filtro ofrece todos los tipos de contenido
+- **WHEN** el usuario despliega cualquiera de los dos selectores de modalidad
+- **THEN** aparecen todos los tipos de contenido del vocabulario, incluidos los que ningún modelo del conjunto de datos utiliza, de modo que el vocabulario no cambia al añadir modelos
+
+#### Scenario: La ordenación activa sobrevive al cambio de filtros
+- **WHEN** el usuario está ordenando por una columna y cambia un criterio de filtrado
+- **THEN** la misma columna sigue siendo la ordenación activa y conserva su sentido
+
+#### Scenario: La ordenación se aplica al subconjunto filtrado
+- **WHEN** el usuario ordena por una columna con filtros activos
+- **THEN** solo se reordenan entre sí las filas que superan los filtros, y ninguna fila filtrada aparece en la tabla
+
+#### Scenario: Un filtro que no deja filas muestra un estado vacío explícito
+- **WHEN** los criterios activos no dejan ningún modelo
+- **THEN** el cuerpo de la tabla muestra un mensaje explícito que indica que ningún modelo coincide, en lugar de un cuerpo vacío indistinguible de un fallo de carga
+
+#### Scenario: El estado vacío identifica los criterios que lo provocaron
+- **WHEN** se muestra el estado vacío
+- **THEN** el mensaje enumera los criterios de filtrado que están activos, de modo que el usuario sabe cuál deshacer
+
+#### Scenario: El estado vacío ofrece limpiar los filtros
+- **WHEN** se muestra el estado vacío
+- **THEN** ofrece una acción para retirar todos los criterios de filtrado de una vez y devolver la tabla a su conjunto completo
+
+#### Scenario: Limpiar los filtros devuelve todas las filas
+- **WHEN** hay filtros activos y el usuario los retira
+- **THEN** vuelven a mostrarse todos los modelos del conjunto de datos, conservando la ordenación que hubiera activa
+
+#### Scenario: El número de modelos visibles es consultable
+- **WHEN** hay filtros activos
+- **THEN** se indica cuántos modelos están visibles de entre el total, de modo que el usuario no tiene que contarlos
 
 ### Requirement: Funcionamiento autónomo y sin dependencias
 El sistema SHALL funcionar abriendo su fichero HTML directamente en un navegador, sin servidor, sin paso de compilación y sin librerías ni frameworks de terceros, de modo que cualquier miembro del equipo pueda abrirlo y ver el dashboard.

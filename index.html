@@ -13,7 +13,26 @@
   </header>
 
   <main class="contenido">
-    <div class="leyenda" id="leyenda" aria-label="Leyenda de modalidades"></div>
+    <div class="barra-filtros" role="group" aria-label="Filtros de la tabla">
+      <div class="campo-filtro">
+        <label class="etiqueta-filtro" for="filtro-nombre">Buscar modelo</label>
+        <input type="text" id="filtro-nombre" class="control-filtro" placeholder="Nombre del modelo" autocomplete="off">
+      </div>
+      <div class="campo-filtro">
+        <label class="etiqueta-filtro" for="filtro-in">Modalidad de entrada</label>
+        <select id="filtro-in" class="control-filtro">
+          <option value="todas">Todas</option>
+        </select>
+      </div>
+      <div class="campo-filtro">
+        <label class="etiqueta-filtro" for="filtro-out">Modalidad de salida</label>
+        <select id="filtro-out" class="control-filtro">
+          <option value="todas">Todas</option>
+        </select>
+      </div>
+      <button type="button" id="limpiar-filtros" class="boton-filtro">Limpiar</button>
+      <span id="contador-modelos" class="contador-modelos" aria-live="polite"></span>
+    </div>
 
     <div class="tabla-contenedor">
       <table class="tabla-modelos" id="tabla-modelos"></table>
