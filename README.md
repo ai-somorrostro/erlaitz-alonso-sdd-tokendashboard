@@ -36,6 +36,30 @@ Cuando ningún modelo cumple los criterios, la tabla no se queda en blanco: las 
 
 Un guion largo (`—`) significa que no hay dato para ese modelo, no que falle la carga.
 
+## Detalle de un modelo
+
+Pulsar el nombre de una fila, en cualquier parte de la fila, abre el detalle del modelo en una ventana modal. El nombre es un botón dentro de la celda de cabecera de fila, así que se puede llegar con el teclado y la tabla no cambia de estructura.
+
+El detalle reúne en una pantalla lo que la tabla resume y no cabe en una fila:
+
+- **Consumo de tokens por día** y **Coste por día**, dos áreas apiladas con la entrada debajo y la salida encima, de forma que el contorno superior es el total del día. Los dos gráficos comparten la misma rejilla vertical y las mismas posiciones horizontales, así que sus puntos se leen uno encima del otro.
+- **Detalle por día**, una rejilla de cuatro filas (entrada, salida, total y coste) por cada uno de los siete días, alineada con los puntos de los gráficos de arriba.
+- **Un riel de magnitudes**: precio de entrada, de salida y precio efectivo; consumo de hoy y de la semana; reparto de hoy dentro del equipo; día de pico, días con dato y TTFT.
+
+Una fila de modelos permite recorrer los que están visibles sin cerrar la ventana. Se cierra con el botón de la esquina, con `Escape` o pulsando fuera.
+
+### El formato cambia, y por qué
+
+El detalle **no repite el formato de la tabla**: aquí los tokens van con su cifra completa (`1.460.000`) y los costes con hasta cuatro decimales. Es una decisión, no un descuido.
+
+La tabla está construida alrededor del ancho de columna, así que abrevia tokens a `1.5M` y redondea el coste a dos decimales. Ese redondeo tiene un coste concreto: Whisper Large v3 consume `$0.00072` al día y Render por lotes `$0.00048`, y con dos decimales **los dos se leerían como `$0.00`**, igual que un modelo sin coste. Con cuatro decimales, un subcéntimo sigue siendo un subcéntimo.
+
+El coste real de un céntimo o más baja a dos decimales, y un cero exacto se escribe `$0.0000`: sigue siendo un dato, no una ausencia. La ausencia sigue siendo el guion largo.
+
+Los ejes de los gráficos usan valores absolutos, con un paso redondeado (`500k`, `1M`; `$0.20`, `$0.0003`) y los decimales que el paso necesita. El eje vertical de cada modelo es el suyo, porque comparar un modelo de 30k tokens con uno de 2,4M en un eje común aplastaría al primero hasta dejarlo indistinguible de cero.
+
+Un día sin dato se dibuja como hueco en las dos gráficas y como guion largo en la rejilla, y deja la semana entera sin dato en lugar de mostrar una suma que no está completa.
+
 ## Gráficos
 
 Sobre la tabla hay dos gráficos, dibujados con SVG sin ninguna librería.

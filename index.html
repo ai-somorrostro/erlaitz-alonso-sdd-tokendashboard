@@ -53,6 +53,34 @@
     </div>
   </main>
 
+  <dialog id="detalle-modelo" class="detalle" aria-labelledby="detalle-titulo">
+    <div class="detalle-cabecera">
+      <div class="detalle-identidad">
+        <h2 class="detalle-nombre" id="detalle-titulo"></h2>
+        <div class="detalle-modalidades" id="detalle-modalidades"></div>
+      </div>
+      <button type="button" class="detalle-cerrar" id="detalle-cerrar" aria-label="Cerrar el detalle del modelo">&times;</button>
+    </div>
+    <nav class="detalle-navegacion" id="detalle-navegacion" aria-label="Modelos visibles"></nav>
+    <div class="detalle-cuerpo">
+      <div class="detalle-columna">
+        <section class="detalle-bloque">
+          <h3 class="detalle-titulo">Consumo de tokens por día</h3>
+          <div class="detalle-lienzo" id="detalle-grafico-tokens"></div>
+        </section>
+        <section class="detalle-bloque">
+          <h3 class="detalle-titulo">Coste por día</h3>
+          <div class="detalle-lienzo" id="detalle-grafico-coste"></div>
+        </section>
+        <section class="detalle-bloque">
+          <h3 class="detalle-titulo">Detalle por día</h3>
+          <div class="detalle-lienzo" id="detalle-rejilla"></div>
+        </section>
+      </div>
+      <div class="detalle-riel" id="detalle-riel"></div>
+    </div>
+  </dialog>
+
   <script src="app.js"></script>
 </body>
 </html>

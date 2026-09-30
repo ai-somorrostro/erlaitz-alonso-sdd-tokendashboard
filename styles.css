@@ -442,3 +442,324 @@ th.es-activa {
   background: var(--acento-suave);
   color: var(--acento);
 }
+
+/* Detalle por modelo.
+ *
+ * Es un `<dialog>` modal, así que el centrado, el foco atrapado y el cierre con
+ * Escape los da la plataforma y no hay que reimplementarlos. El `max-height` con
+ * scroll es una válvula de seguridad para ventanas muy bajas: el alto del
+ * contenido está calculado para caber sin scroll a partir de 700px de alto, que
+ * es el umbral que fija la especificación, y por debajo el diálogo scrollea en
+ * lugar de recortar el riel. */
+
+body.detalle-abierto {
+  overflow: hidden;
+}
+
+.detalle {
+  width: min(860px, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 14px 16px 16px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--superficie);
+  color: var(--texto);
+  border: 1px solid var(--borde-oscuro);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(27, 31, 36, 0.18);
+}
+
+.detalle::backdrop {
+  background: rgba(27, 31, 36, 0.42);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .detalle[open] {
+    animation: detalle-entra 140ms ease-out;
+  }
+}
+
+@keyframes detalle-entra {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* El nombre de la fila abre el detalle, así que es un botón. No aporta relleno
+ * ni borde: la celda sigue teniendo su propio fondo y su padding, y la fila se ve
+ * igual que antes. El puntero va en la fila entera porque cualquier celda
+ * activa el detalle. */
+
+.fila-boton {
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fila-boton:hover {
+  color: var(--acento);
+}
+
+.fila-boton:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.tabla-modelos tbody tr {
+  cursor: pointer;
+}
+
+.detalle-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.detalle-nombre {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.detalle-modalidades {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.detalle-modalidad-sigla {
+  color: var(--texto-suave);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.detalle-modalidad-sigla:not(:first-child) {
+  margin-left: 8px;
+}
+
+.detalle-cerrar {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--texto-suave);
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.detalle-cerrar:hover {
+  background: var(--acento-suave);
+  border-color: var(--borde-oscuro);
+  color: var(--acento);
+}
+
+.detalle-cerrar:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+}
+
+/* Navegación entre los modelos visibles. Son botones y no opciones: la
+ * navegación es una acción, y `aria-current` dice cuál está en pantalla. */
+
+.detalle-navegacion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.nav-modelo {
+  padding: 4px 9px;
+  background: var(--superficie);
+  border: 1px solid var(--borde-oscuro);
+  border-radius: 4px;
+  color: var(--texto-suave);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.nav-modelo:hover {
+  border-color: var(--acento);
+  color: var(--acento);
+}
+
+.nav-modelo:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+}
+
+.nav-modelo[aria-current="true"] {
+  background: var(--acento-suave);
+  border-color: var(--acento);
+  color: var(--acento);
+  font-weight: 600;
+}
+
+/* Dos columnas: las gráficas a la izquierda, las métricas a la derecha. La
+ * anchura de la izquierda la fija `app.js` al construir el trazado, así que el
+ * ancho declarado aquí tiene que coincidir con el del SVG. */
+
+.detalle-cuerpo {
+  display: grid;
+  grid-template-columns: 480px minmax(240px, 1fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.detalle-titulo {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.detalle-bloque + .detalle-bloque {
+  margin-top: 12px;
+}
+
+.detalle-lienzo {
+  overflow-x: auto;
+}
+
+.svg-detalle {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Marcas del eje, alineadas a la derecha contra la rejilla. */
+.detalle-eje {
+  fill: var(--texto-suave);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  text-anchor: end;
+}
+
+/* Etiquetas de día bajo el trazado, centradas en su punto. */
+.detalle-dia {
+  fill: var(--texto-suave);
+  font-size: 9px;
+  text-anchor: middle;
+}
+
+.detalle-base {
+  stroke: var(--rejilla-linea);
+  stroke-width: 1;
+}
+
+.detalle-area--entrada {
+  fill: var(--serie-entrada);
+}
+
+.detalle-area--salida {
+  fill: var(--serie-salida);
+}
+
+/* Rejilla de días. El ancho y el de la columna de etiquetas los fija `app.js`
+ * desde la misma geometría que el trazado, así que las celdas caen sobre los
+ * puntos de las gráficas de arriba. `table-layout: fixed` reparte el resto en
+ * columnas iguales, que es lo que mantiene la rejilla legible. */
+
+.rejilla-dias {
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rejilla-dias th,
+.rejilla-dias td {
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--rejilla-linea);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rejilla-dias thead th {
+  color: var(--texto-suave);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.rejilla-dias tbody th {
+  color: var(--texto-suave);
+  font-weight: 600;
+  text-align: left;
+}
+
+.rejilla-dias tbody tr:last-child th,
+.rejilla-dias tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Riel de métricas. Tablas pequeñas en vez de una lista de pares: los números
+ * quedan en columna y se comparan de un vistazo. */
+
+.detalle-riel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.riel-titulo {
+  margin: 0 0 3px;
+  color: var(--texto-suave);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.riel-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.riel-tabla th,
+.riel-tabla td {
+  padding: 2px 0;
+  white-space: nowrap;
+}
+
+.riel-tabla th {
+  color: var(--texto-suave);
+  font-weight: 400;
+  text-align: left;
+}
+
+.riel-tabla td {
+  text-align: right;
+}
+
+.riel-tabla thead th,
+.riel-tabla thead td {
+  color: var(--texto-suave);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* La fila de total es la que se lee de un vistazo: el resto va más suave. */
+.riel-tabla tr.riel-total th,
+.riel-tabla tr.riel-total td {
+  color: var(--texto);
+  font-weight: 600;
+}
+

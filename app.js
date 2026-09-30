@@ -231,6 +231,87 @@ function formatearTTFT(valor) {
   return valor + ' ms';
 }
 
+/* Formato extendido del detalle.
+ *
+ * Son formatters paralelos a los de la tabla, no una versión mejorada de los
+ * de la tabla. La tabla está construida alrededor del ancho de columna, así que
+ * abrevia tokens a `1.5M` y redondea el coste a dos decimales; en el detalle ese
+ * redondeo tiene un coste concreto, porque Whisper Large v3 vale $0.00072 y
+ * Render por lotes $0.00048 y los dos se leerían como `$0.00`. Aquí lo que se
+ * pide es el valor.
+ *
+ * Los millares llevan punto, que es lo que corresponde en español y lo que ya
+ * hace `formatearTokens`. El punto decimal del dinero lo pone `toFixed`, igual
+ * que en `formatearPrecio` y `formatearCoste`.
+ */
+
+function separadorDeMillares(entero) {
+  return String(entero).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function formatearTokensExactos(valor) {
+  if (!esNumero(valor)) return SIN_VALOR;
+  return separadorDeMillares(Math.round(valor));
+}
+
+function formatearPrecioExtendido(valor) {
+  if (!esNumero(valor)) return SIN_VALOR;
+  const decimales = valor > 0 && valor < 0.01 ? 4 : 2;
+  return '$' + redondear(valor, decimales).toFixed(decimales) + ' /1M';
+}
+
+// Cuatro decimales por debajo de un dólar y dos a partir de ahí. El suelo de
+// cuatro es lo que separa un coste real de un cero: con dos, los dos modelos
+// más baratos del conjunto se leen como `$0.00`.
+function formatearCosteExtendido(valor) {
+  if (!esNumero(valor)) return SIN_VALOR;
+  const decimales = Math.abs(valor) >= 1 ? 2 : 4;
+  return '$' + redondear(valor, decimales).toFixed(decimales);
+}
+
+// Un decimal basta para leer un reparto: la diferencia entre 21,9% y 22,0% no
+// cambia ninguna decisión, y con dos decimales el riel se llena de cifras que
+// parecen más precisas de lo que son.
+function formatearPorcentaje(valor) {
+  if (!esNumero(valor)) return SIN_VALOR;
+  return redondear(valor, 1) + '%';
+}
+
+/* Marcas de eje de las gráficas del detalle.
+ *
+ * El paso sale de una lista de valores redondos por encima del bruto, para que
+ * el eje caiga en números que se leen de un vistazo. Se divide el máximo entre
+ * un número objetivo de tramos y se redondea el cociente hacia arriba en la
+ * potencia de diez correspondiente; el factor 10 de la lista es el techo, para
+ * el bruto que se pase del factor mayor.
+ */
+
+const PASOS_BONITOS = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+
+function pasoBonito(maximo, objetivo) {
+  if (!esNumero(maximo) || maximo <= 0) return 1;
+  const tramos = esNumero(objetivo) && objetivo > 0 ? objetivo : 3;
+  const bruto = maximo / tramos;
+  const magnitud = Math.pow(10, Math.floor(Math.log10(bruto)));
+  const normalizado = bruto / magnitud;
+  const factor = PASOS_BONITOS.find(candidato => normalizado <= candidato + 1e-9) || 10;
+  return factor * magnitud;
+}
+
+function decimalesPara(paso) {
+  if (!esNumero(paso) || paso <= 0) return 0;
+  if (paso >= 1) return 0;
+  return Math.min(8, Math.ceil(-Math.log10(paso)));
+}
+
+// Una marca del eje de coste. El suelo de dos decimales es del dinero, no del
+// cálculo: `$0.4` junto a `$0.40` no se lee igual. El techo de cuatro sale de
+// los datos: el paso más fino que produce el fixture es de $0.0002.
+function formatearMarcaCoste(marca, paso) {
+  const decimales = Math.min(4, Math.max(2, decimalesPara(paso)));
+  return '$' + redondear(marca, decimales).toFixed(decimales);
+}
+
 const COLUMNAS = [
   { id: 'precio-in', etiqueta: '$ in', clave: 'precioIn', agrupado: 'precio', tipo: 'precio' },
   { id: 'precio-out', etiqueta: '$ out', clave: 'precioOut', agrupado: 'precio', tipo: 'precio' },
@@ -344,12 +425,27 @@ function crearCeldaColumna(columna, modelo) {
   return celda;
 }
 
+// El nombre del modelo es un botón porque abre algo. Va dentro de un `<th
+// scope="row">` para que la celda siga siendo la cabecera de la fila y la tabla
+// no cambie de estructura ni de aspecto: el botón no aporta relleno ni borde,
+// solo hace clicable el texto que ya era el nombre.
+function crearBotonFila(modelo) {
+  const boton = document.createElement('button');
+  boton.type = 'button';
+  boton.className = 'fila-boton';
+  boton.textContent = modelo.nombre;
+  boton.setAttribute('aria-haspopup', 'dialog');
+  boton.setAttribute('aria-label', 'Ver el detalle de ' + modelo.nombre);
+  return boton;
+}
+
 function crearFila(modelo) {
   const fila = document.createElement('tr');
+  fila.dataset.modelo = modelo.id;
   const celdaModelo = document.createElement('th');
   celdaModelo.scope = 'row';
   celdaModelo.className = 'celda-modelo';
-  celdaModelo.textContent = modelo.nombre;
+  celdaModelo.appendChild(crearBotonFila(modelo));
   fila.appendChild(celdaModelo);
   HOJAS.forEach(hoja => {
     fila.appendChild(
@@ -980,6 +1076,546 @@ function limpiarFiltros() {
   render();
 }
 
+/* Detalle por modelo.
+ *
+ * Un único `<dialog>` para todos los modelos: al cambiar se vacía y se vuelve a
+ * construir, en vez de haber un diálogo por fila. Todo el formato es el
+ * extendido —tokens sin abreviar y costes con los decimales que haga falta para
+ * que no se lean como cero—, que es justo donde el formato compacto de la tabla
+ * no sirve y por eso el detalle tiene su propia ruta de formateo. */
+
+const GRAFICO_DETALLE = {
+  ancho: 480,
+  margenIzquierdo: 62,
+  margenDerecho: 12,
+  margenSuperior: 6,
+  altoTrazado: 104,
+  altoEje: 16,
+  marcasEje: 3,
+};
+
+const detalle = { id: null, disparador: null };
+
+function modeloPorId(id) {
+  return MODELOS.find(modelo => modelo.id === id) || null;
+}
+
+function costeDeTokens(tokens, precio) {
+  if (!esNumero(tokens) || !esNumero(precio)) return null;
+  return (tokens * precio) / 1000000;
+}
+
+// Las magnitudes derivadas de un día. `null` cuando el día no tiene dato, y
+// también cuando el precio no está: un coste sin precio no es cero, es
+// ausencia, y por eso `costeIn` se calcula aparte en lugar de repartirse el
+// total.
+function magnitudesDeDia(modelo, dia) {
+  if (!diaCompleto(dia)) return null;
+  return {
+    tokensIn: dia.tokensIn,
+    tokensOut: dia.tokensOut,
+    tokensTotal: totalTokens(dia),
+    costeIn: costeDeTokens(dia.tokensIn, modelo.precioIn),
+    costeOut: costeDeTokens(dia.tokensOut, modelo.precioOut),
+    costeTotal: calcularCoste(dia, modelo),
+  };
+}
+
+function magnitudesDe(modelo) {
+  return (serieDe(modelo) || []).map(dia => magnitudesDeDia(modelo, dia));
+}
+
+function diasConDato(magnitudes) {
+  return magnitudes.filter(Boolean).length;
+}
+
+function diaDePico(modelo) {
+  const dias = serieDe(modelo);
+  if (!dias) return null;
+  const etiquetas = diasRelativos(dias.length);
+  let pico = null;
+  magnitudesDe(modelo).forEach((magnitud, indice) => {
+    if (!magnitud) return;
+    if (!pico || magnitud.tokensTotal > pico.tokensTotal) {
+      pico = { etiqueta: etiquetas[indice], tokensTotal: magnitud.tokensTotal };
+    }
+  });
+  return pico;
+}
+
+// El precio que el modelo se está pagando de verdad: su coste dividido por sus
+// tokens. Sale entre los dos precios de lista, y es lo que hace comparables dos
+// modelos con precios de entrada y salida muy separados.
+function precioEfectivo(modelo, ventana) {
+  const tokens = totalTokens(ventana);
+  const coste = calcularCoste(ventana, modelo);
+  if (!esNumero(tokens) || tokens === 0 || !esNumero(coste)) return null;
+  return (coste / tokens) * 1000000;
+}
+
+// Qué parte del consumo de hoy se lleva este modelo dentro del conjunto
+// visible. La referencia es la suma de los visibles, no el total del fixture, de
+// forma que un filtro rehace el reparto en lugar de dejar cifras que ya no
+// cuadran con lo que se está viendo.
+function pesoEnEquipo(modelo, visibles) {
+  const dia = ventanas(modelo).dia;
+  const tokens = totalTokens(dia);
+  const coste = calcularCoste(dia, modelo);
+  if (!esNumero(tokens) || !esNumero(coste)) return null;
+  const referencia = visibles.reduce(
+    (acumulado, otro) => {
+      const diaOtro = ventanas(otro).dia;
+      return {
+        tokens: acumulado.tokens + (totalTokens(diaOtro) || 0),
+        coste: acumulado.coste + (calcularCoste(diaOtro, otro) || 0),
+      };
+    },
+    { tokens: 0, coste: 0 }
+  );
+  return {
+    tokens: referencia.tokens > 0 ? (tokens / referencia.tokens) * 100 : null,
+    coste: referencia.coste > 0 ? (coste / referencia.coste) * 100 : null,
+  };
+}
+
+/* Riel de métricas. Tablas pequeñas en vez de una lista de pares: los números
+ * quedan en columna y se comparan de un vistazo. `celdaRiel` es el único sitio
+ * donde se decide entre un valor y un marcador de ausencia. */
+
+function celdaRiel(magnitud, clave, formato, tituloVacio) {
+  const celda = document.createElement('td');
+  const valor = magnitud ? magnitud[clave] : null;
+  if (!esNumero(valor)) {
+    celda.appendChild(crearMarcador(tituloVacio));
+    return celda;
+  }
+  celda.textContent = formato(valor);
+  return celda;
+}
+
+function filaRiel(etiqueta, texto, tituloVacio) {
+  const fila = document.createElement('tr');
+  const cabecera = document.createElement('th');
+  cabecera.scope = 'row';
+  cabecera.textContent = etiqueta;
+  const celda = document.createElement('td');
+  if (texto === null || texto === undefined) {
+    celda.appendChild(crearMarcador(tituloVacio || 'Valor no disponible'));
+  } else {
+    celda.textContent = texto;
+  }
+  fila.appendChild(cabecera);
+  fila.appendChild(celda);
+  return fila;
+}
+
+function tablaRiel(encabezados, filas) {
+  const tabla = document.createElement('table');
+  tabla.className = 'riel-tabla';
+  if (encabezados) {
+    const cabecera = document.createElement('thead');
+    const fila = document.createElement('tr');
+    encabezados.forEach((texto, indice) => {
+      const celda = document.createElement(indice === 0 ? 'th' : 'td');
+      if (indice === 0) celda.scope = 'col';
+      celda.textContent = texto;
+      fila.appendChild(celda);
+    });
+    cabecera.appendChild(fila);
+    tabla.appendChild(cabecera);
+  }
+  const cuerpo = document.createElement('tbody');
+  filas.forEach(fila => cuerpo.appendChild(fila));
+  tabla.appendChild(cuerpo);
+  return tabla;
+}
+
+function grupoRiel(titulo, tabla) {
+  const grupo = document.createElement('div');
+  const encabezado = document.createElement('p');
+  encabezado.className = 'riel-titulo';
+  encabezado.textContent = titulo;
+  grupo.appendChild(encabezado);
+  grupo.appendChild(tabla);
+  return grupo;
+}
+
+function renderRiel(contenedor, modelo, visibles) {
+  vaciar(contenedor);
+  const { dia, semana } = ventanas(modelo);
+  const hoy = dia ? magnitudesDeDia(modelo, dia) : null;
+  const semanaMagnitud = semana ? magnitudesDeDia(modelo, semana) : null;
+  const peso = pesoEnEquipo(modelo, visibles);
+  const pico = diaDePico(modelo);
+  const magnitudes = magnitudesDe(modelo);
+  const total = serieDe(modelo) ? serieDe(modelo).length : 0;
+
+  contenedor.appendChild(
+    grupoRiel(
+      'Precio',
+      tablaRiel(null, [
+        filaRiel('Entrada', formatearPrecioExtendido(modelo.precioIn), 'Precio de entrada no disponible'),
+        filaRiel('Salida', formatearPrecioExtendido(modelo.precioOut), 'Precio de salida no disponible'),
+        filaRiel('Efectivo', formatearPrecioExtendido(precioEfectivo(modelo, semana)), 'Sin consumo semanal con el que calcular un precio efectivo'),
+      ])
+    )
+  );
+
+  const filasConsumo = [
+    { etiqueta: 'Entrada', clave: 'tokensIn', formato: formatearTokensExactos, vacio: 'Consumo de entrada no disponible' },
+    { etiqueta: 'Salida', clave: 'tokensOut', formato: formatearTokensExactos, vacio: 'Consumo de salida no disponible' },
+    { etiqueta: 'Total', clave: 'tokensTotal', formato: formatearTokensExactos, vacio: 'Consumo total no disponible', clase: 'riel-total' },
+    { etiqueta: 'Coste', clave: 'costeTotal', formato: formatearCosteExtendido, vacio: 'Coste no disponible', clase: 'riel-total' },
+  ].map(definicion => {
+    const fila = document.createElement('tr');
+    if (definicion.clase) fila.className = definicion.clase;
+    const etiqueta = document.createElement('th');
+    etiqueta.scope = 'row';
+    etiqueta.textContent = definicion.etiqueta;
+    fila.appendChild(etiqueta);
+    fila.appendChild(celdaRiel(hoy, definicion.clave, definicion.formato, definicion.vacio));
+    fila.appendChild(celdaRiel(semanaMagnitud, definicion.clave, definicion.formato, definicion.vacio));
+    return fila;
+  });
+
+  contenedor.appendChild(
+    grupoRiel('Consumo', tablaRiel(['', 'Hoy', 'Semana'], filasConsumo))
+  );
+
+  contenedor.appendChild(
+    grupoRiel(
+      'Reparto de hoy',
+      tablaRiel(null, [
+        filaRiel('Tokens', peso ? formatearPorcentaje(peso.tokens) : null, 'Sin consumo de hoy con el que repartir'),
+        filaRiel('Coste', peso ? formatearPorcentaje(peso.coste) : null, 'Sin coste de hoy con el que repartir'),
+      ])
+    )
+  );
+
+  contenedor.appendChild(
+    grupoRiel(
+      'Serie',
+      tablaRiel(null, [
+        filaRiel(
+          'Día de pico',
+          pico ? formatearTokensExactos(pico.tokensTotal) : null,
+          'Ningún día con consumo'
+        ),
+        filaRiel('En', pico ? pico.etiqueta : null, 'Ninguna serie de consumo'),
+        filaRiel(
+          'Días con dato',
+          total > 0 ? diasConDato(magnitudes) + ' de ' + total : null,
+          'Ninguna serie de consumo'
+        ),
+        filaRiel('TTFT', formatearTTFT(modelo.ttftMs), 'TTFT no medido'),
+      ])
+    )
+  );
+}
+
+/* Rejilla de días. Una columna por día, en el mismo orden que las dos gráficas
+ * de arriba, y el ancho sale de la misma configuración que ellas para que las
+ * celdas caigan sobre los puntos del trazado. */
+
+function renderRejillaDias(contenedor, modelo, magnitudes) {
+  vaciar(contenedor);
+  const dias = serieDe(modelo);
+  if (!dias) {
+    contenedor.appendChild(crearMarcador('El modelo no tiene serie de consumo'));
+    return;
+  }
+  const config = GRAFICO_DETALLE;
+  const anchoTrazado = config.ancho - config.margenIzquierdo - config.margenDerecho;
+
+  const tabla = document.createElement('table');
+  tabla.className = 'rejilla-dias';
+  // El ancho viene de `app.js` y no del CSS para que la rejilla y el trazado no
+  // puedan separarse al tocar la geometría.
+  tabla.style.width = config.margenIzquierdo + anchoTrazado + 'px';
+
+  const cabecera = document.createElement('thead');
+  const filaCabecera = document.createElement('tr');
+  const esquina = document.createElement('th');
+  esquina.textContent = '';
+  esquina.style.width = config.margenIzquierdo + 'px';
+  filaCabecera.appendChild(esquina);
+  diasRelativos(dias.length).forEach(etiqueta => {
+    const celda = document.createElement('th');
+    celda.scope = 'col';
+    celda.textContent = etiqueta;
+    filaCabecera.appendChild(celda);
+  });
+  cabecera.appendChild(filaCabecera);
+  tabla.appendChild(cabecera);
+
+  const cuerpo = document.createElement('tbody');
+  [
+    { etiqueta: 'Entrada', clave: 'tokensIn', formato: formatearTokensExactos },
+    { etiqueta: 'Salida', clave: 'tokensOut', formato: formatearTokensExactos },
+    { etiqueta: 'Total', clave: 'tokensTotal', formato: formatearTokensExactos },
+    { etiqueta: 'Coste', clave: 'costeTotal', formato: formatearCosteExtendido },
+  ].forEach(definicion => {
+    const fila = document.createElement('tr');
+    const etiqueta = document.createElement('th');
+    etiqueta.scope = 'row';
+    etiqueta.textContent = definicion.etiqueta;
+    etiqueta.style.width = config.margenIzquierdo + 'px';
+    fila.appendChild(etiqueta);
+    magnitudes.forEach(magnitud => {
+      const valor = magnitud ? magnitud[definicion.clave] : null;
+      if (!esNumero(valor)) {
+        const celda = document.createElement('td');
+        celda.appendChild(crearMarcador('Día sin dato'));
+        fila.appendChild(celda);
+        return;
+      }
+      const celda = document.createElement('td');
+      celda.textContent = definicion.formato(valor);
+      fila.appendChild(celda);
+    });
+    cuerpo.appendChild(fila);
+  });
+  tabla.appendChild(cuerpo);
+  contenedor.appendChild(tabla);
+}
+
+/* Gráficas del detalle. Las dos comparten `GRAFICO_DETALLE`, así que tienen la
+ * misma altura, la misma rejilla vertical y las mismas posiciones x: un punto del
+ * tracedo de tokens y su celda en la rejilla están en la misma columna. */
+
+function renderGraficoDetalle(contenedor, modelo, dias, magnitudes, opciones) {
+  vaciar(contenedor);
+  if (!magnitudes.some(Boolean)) {
+    contenedor.appendChild(crearMarcador('El modelo no tiene ningún día con consumo'));
+    return;
+  }
+  const config = GRAFICO_DETALLE;
+  const yBase = config.margenSuperior + config.altoTrazado;
+  const alto = yBase + config.altoEje;
+  const anchoTrazado = config.ancho - config.margenIzquierdo - config.margenDerecho;
+  // El eje sube hasta el primer múltiplo del paso que cubre el máximo, para que
+  // las marcas sean números redondos y la cresta no toque el borde superior.
+  const maximo = magnitudes.reduce(
+    (mayor, magnitud) => (magnitud ? Math.max(mayor, opciones.superior(magnitud)) : mayor),
+    0
+  );
+  const paso = pasoBonito(maximo, config.marcasEje);
+  const techo = Math.ceil(maximo / paso) * paso;
+  // Un punto por día, en el centro de su columna y no en el borde: así el punto
+  // cae sobre el centro de la celda de la rejilla de abajo.
+  const pasoX = anchoTrazado / Math.max(1, magnitudes.length);
+  const yDe = valor => yBase - (valor / techo) * config.altoTrazado;
+  const xDe = indice => config.margenIzquierdo + pasoX * (indice + 0.5);
+
+  const svg = elementoSvg('svg', {
+    class: 'svg-detalle',
+    viewBox: '0 0 ' + config.ancho + ' ' + alto,
+    width: config.ancho,
+    height: alto,
+    role: 'img',
+    'aria-label': opciones.aria,
+  });
+
+  for (let indice = 0; indice * paso <= techo + 1e-12; indice += 1) {
+    const valor = indice * paso;
+    svg.appendChild(
+      textoSvg(opciones.eje(valor, paso), {
+        class: 'detalle-eje',
+        x: config.margenIzquierdo - 6,
+        y: yDe(valor) + 3,
+      })
+    );
+  }
+
+  svg.appendChild(
+    elementoSvg('line', {
+      class: 'detalle-base',
+      x1: config.margenIzquierdo,
+      y1: yBase,
+      x2: config.margenIzquierdo + anchoTrazado,
+      y2: yBase,
+    })
+  );
+
+  const areasEntrada = [];
+  const areasSalida = [];
+  tramosDeSerie(dias).forEach(tramo => {
+    const indices = [];
+    for (let indice = tramo.desde; indice <= tramo.hasta; indice += 1) indices.push(indice);
+    // `areaTramo` lee el borde superior de `punto.ySuperior` por su nombre, así
+    // que cada punto lleva ya dentro la altura del borde que se va a pintar.
+    const puntosEntrada = indices.map(indice => ({
+      x: xDe(indice),
+      ySuperior: yDe(opciones.inferior(magnitudes[indice])),
+    }));
+    const puntosSalida = indices.map(indice => {
+      const magnitud = magnitudes[indice];
+      return {
+        x: xDe(indice),
+        ySuperior: yDe(opciones.superior(magnitud)),
+        yInferior: yDe(opciones.inferior(magnitud)),
+      };
+    });
+    areasEntrada.push(areaTramo(puntosEntrada, punto => punto.ySuperior, () => yBase));
+    areasSalida.push(areaTramo(puntosSalida, punto => punto.ySuperior, punto => punto.yInferior));
+  });
+
+  svg.appendChild(elementoSvg('path', { class: 'detalle-area detalle-area--entrada', d: areasEntrada.join(' ') }));
+  svg.appendChild(elementoSvg('path', { class: 'detalle-area detalle-area--salida', d: areasSalida.join(' ') }));
+
+  diasRelativos(dias.length).forEach((etiqueta, indice) => {
+    svg.appendChild(textoSvg(etiqueta, { class: 'detalle-dia', x: xDe(indice), y: yBase + 13 }));
+  });
+
+  contenedor.appendChild(svg);
+}
+
+/* Cabecera, navegación y montaje del contenido. */
+
+function renderModalidadesDetalle(contenedor, modelo) {
+  vaciar(contenedor);
+  [
+    ['In', modelo.modalidadesIn, 'No admite contenido de entrada'],
+    ['Out', modelo.modalidadesOut, 'No genera contenido de salida'],
+  ].forEach(([sigla, tipos, tituloVacio]) => {
+    const etiqueta = document.createElement('span');
+    etiqueta.className = 'detalle-modalidad-sigla';
+    etiqueta.textContent = sigla;
+    contenedor.appendChild(etiqueta);
+    if (!tipos || tipos.length === 0) {
+      contenedor.appendChild(crearMarcador(tituloVacio));
+    } else {
+      tipos.forEach(tipo => contenedor.appendChild(crearBadge(tipo)));
+    }
+  });
+}
+
+function renderNavegacionDetalle(contenedor, visibles, actual) {
+  vaciar(contenedor);
+  visibles.forEach(modelo => {
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'nav-modelo';
+    boton.textContent = modelo.nombre;
+    if (modelo.id === actual) boton.setAttribute('aria-current', 'true');
+    boton.addEventListener('click', () => cambiarDetalle(modelo.id));
+    contenedor.appendChild(boton);
+  });
+}
+
+function renderDetalle(dialogo, modelo, visibles) {
+  const dias = serieDe(modelo) || [];
+  const magnitudes = magnitudesDe(modelo);
+  dialogo.querySelector('#detalle-titulo').textContent = modelo.nombre;
+  renderModalidadesDetalle(dialogo.querySelector('#detalle-modalidades'), modelo);
+  renderNavegacionDetalle(dialogo.querySelector('#detalle-navegacion'), visibles, modelo.id);
+  renderGraficoDetalle(
+    dialogo.querySelector('#detalle-grafico-tokens'),
+    modelo,
+    dias,
+    magnitudes,
+    {
+      superior: magnitud => magnitud.tokensTotal,
+      inferior: magnitud => magnitud.tokensIn,
+      eje: valor => formatearTokens(valor),
+      aria: 'Consumo diario de tokens de ' + modelo.nombre + ' durante los últimos ' + dias.length + ' días',
+    }
+  );
+  renderGraficoDetalle(
+    dialogo.querySelector('#detalle-grafico-coste'),
+    modelo,
+    dias,
+    magnitudes,
+    {
+      superior: magnitud => magnitud.costeTotal,
+      inferior: magnitud => magnitud.costeIn,
+      eje: (valor, paso) => formatearMarcaCoste(valor, paso),
+      aria: 'Coste diario de ' + modelo.nombre + ' durante los últimos ' + dias.length + ' días',
+    }
+  );
+  renderRejillaDias(dialogo.querySelector('#detalle-rejilla'), modelo, magnitudes);
+  renderRiel(dialogo.querySelector('#detalle-riel'), modelo, visibles);
+}
+
+function dialogoDetalle() {
+  return document.getElementById('detalle-modelo');
+}
+
+function abrirDetalle(id, disparador) {
+  const dialogo = dialogoDetalle();
+  const modelo = modeloPorId(id);
+  if (!modelo) return;
+  detalle.id = id;
+  detalle.disparador = disparador;
+  renderDetalle(dialogo, modelo, modelosVisibles());
+  document.body.classList.add('detalle-abierto');
+  if (!dialogo.open) dialogo.showModal();
+}
+
+// Cambiar de modelo no cierra el diálogo: se reconstruye el contenido y se
+// devuelve el foco al botón que ha pasado a ser el actual. Sin eso, el foco se
+// quedaría en el botón viejo, que ya no existe, y la navegación por teclado se
+// rompería justo en el momento en que se está usando.
+function cambiarDetalle(id) {
+  const dialogo = dialogoDetalle();
+  const modelo = modeloPorId(id);
+  if (!modelo || !dialogo.open) return;
+  const navegacion = dialogo.querySelector('#detalle-navegacion');
+  const focoEnLaNavegacion = navegacion.contains(document.activeElement);
+  detalle.id = id;
+  renderDetalle(dialogo, modelo, modelosVisibles());
+  if (focoEnLaNavegacion) {
+    const actual = navegacion.querySelector('[aria-current="true"]');
+    if (actual) actual.focus();
+  }
+}
+
+function cerrarDetalle() {
+  dialogoDetalle().close();
+}
+
+// Al cerrar se suelta todo el contenido, incluido el SVG del gráfico, para que
+// el diálogo no retenga los nodos de un modelo que ya no se está mirando.
+function vaciarDetalle() {
+  ['#detalle-titulo', '#detalle-modalidades', '#detalle-navegacion', '#detalle-grafico-tokens', '#detalle-grafico-coste', '#detalle-rejilla', '#detalle-riel'].forEach(selector => {
+    vaciar(dialogoDetalle().querySelector(selector));
+  });
+}
+
+function alCerrarDetalle() {
+  vaciarDetalle();
+  document.body.classList.remove('detalle-abierto');
+  const disparador = detalle.disparador;
+  detalle.id = null;
+  detalle.disparador = null;
+  // El foco vuelve a la fila desde la que se abrió. No es lo mismo que el
+  // elemento que la plataforma recuerda: si el diálogo se abrió con el ratón
+  // desde cualquier celda, ese elemento es el `<td>` y el teclado se quedaría
+  // perdido en la tabla.
+  if (disparador && document.contains(disparador)) disparador.focus();
+}
+
+function alPulsarFila(evento) {
+  const fila = evento.target.closest('tbody tr');
+  if (!fila || !fila.dataset.modelo) return;
+  abrirDetalle(fila.dataset.modelo, fila.querySelector('.fila-boton'));
+}
+
+// Un clic en el fondo llega retargeteado al propio diálogo, así que la única
+// forma de distinguirlo de un clic en su relleno es comparar con la caja: el
+// relleno sí cae dentro.
+function alPulsarFondo(evento) {
+  const dialogo = dialogoDetalle();
+  if (evento.target !== dialogo) return;
+  const caja = dialogo.getBoundingClientRect();
+  const dentro =
+    evento.clientX >= caja.left &&
+    evento.clientX <= caja.right &&
+    evento.clientY >= caja.top &&
+    evento.clientY <= caja.bottom;
+  if (!dentro) cerrarDetalle();
+}
+
 function iniciar() {
   document.getElementById('tabla-modelos').addEventListener('click', alPulsarCabecera);
   poblarOpcionesModalidad(document.getElementById('filtro-in'));
@@ -988,6 +1624,10 @@ function iniciar() {
   document.getElementById('filtro-in').addEventListener('change', alElegirModalidadIn);
   document.getElementById('filtro-out').addEventListener('change', alElegirModalidadOut);
   document.getElementById('limpiar-filtros').addEventListener('click', limpiarFiltros);
+  document.getElementById('tabla-modelos').addEventListener('click', alPulsarFila);
+  dialogoDetalle().addEventListener('close', alCerrarDetalle);
+  dialogoDetalle().addEventListener('click', alPulsarFondo);
+  document.getElementById('detalle-cerrar').addEventListener('click', cerrarDetalle);
   render();
 }
 
