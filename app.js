@@ -5,6 +5,9 @@ const SIGLAS = {
   video: { etiqueta: 'Video' },
 };
 
+// El consumo se guarda como una serie de siete días, del más antiguo al más reciente.
+// El último día es hoy. La ventana diaria y la semanal se derivan de aquí, no se almacenan.
+// Un día sin dato es `null`: un cero sigue siendo un cero, y los dos casos se dibujan distinto.
 const MODELOS = [
   {
     id: 'llama-3-1-70b',
@@ -15,8 +18,15 @@ const MODELOS = [
     modalidadesIn: ['texto'],
     modalidadesOut: ['texto'],
     consumo: {
-      dia: { tokensIn: 900000, tokensOut: 300000 },
-      semana: { tokensIn: 6300000, tokensOut: 2100000 },
+      dias: [
+        { tokensIn: 720000, tokensOut: 240000 },
+        { tokensIn: 850000, tokensOut: 285000 },
+        { tokensIn: 960000, tokensOut: 320000 },
+        { tokensIn: 1100000, tokensOut: 360000 },
+        { tokensIn: 980000, tokensOut: 330000 },
+        { tokensIn: 790000, tokensOut: 265000 },
+        { tokensIn: 900000, tokensOut: 300000 },
+      ],
     },
   },
   {
@@ -28,8 +38,15 @@ const MODELOS = [
     modalidadesIn: ['texto'],
     modalidadesOut: ['texto'],
     consumo: {
-      dia: { tokensIn: 1450000, tokensOut: 620000 },
-      semana: { tokensIn: 9100000, tokensOut: 3900000 },
+      dias: [
+        { tokensIn: 1100000, tokensOut: 470000 },
+        { tokensIn: 1250000, tokensOut: 530000 },
+        { tokensIn: 1380000, tokensOut: 590000 },
+        null,
+        { tokensIn: 1520000, tokensOut: 650000 },
+        { tokensIn: 1350000, tokensOut: 580000 },
+        { tokensIn: 1450000, tokensOut: 620000 },
+      ],
     },
   },
   {
@@ -41,8 +58,15 @@ const MODELOS = [
     modalidadesIn: ['texto'],
     modalidadesOut: ['texto'],
     consumo: {
-      dia: { tokensIn: 310000, tokensOut: 95000 },
-      semana: { tokensIn: 2100000, tokensOut: 640000 },
+      dias: [
+        { tokensIn: 240000, tokensOut: 75000 },
+        { tokensIn: 285000, tokensOut: 88000 },
+        { tokensIn: 330000, tokensOut: 102000 },
+        { tokensIn: 355000, tokensOut: 112000 },
+        { tokensIn: 300000, tokensOut: 92000 },
+        { tokensIn: 280000, tokensOut: 76000 },
+        { tokensIn: 310000, tokensOut: 95000 },
+      ],
     },
   },
   {
@@ -54,8 +78,15 @@ const MODELOS = [
     modalidadesIn: ['texto', 'imagen'],
     modalidadesOut: ['texto'],
     consumo: {
-      dia: { tokensIn: 480000, tokensOut: 190000 },
-      semana: { tokensIn: 2900000, tokensOut: 1150000 },
+      dias: [
+        { tokensIn: 340000, tokensOut: 135000 },
+        { tokensIn: 390000, tokensOut: 155000 },
+        { tokensIn: 445000, tokensOut: 178000 },
+        { tokensIn: 480000, tokensOut: 190000 },
+        { tokensIn: 420000, tokensOut: 168000 },
+        { tokensIn: 345000, tokensOut: 134000 },
+        { tokensIn: 480000, tokensOut: 190000 },
+      ],
     },
   },
   {
@@ -67,8 +98,15 @@ const MODELOS = [
     modalidadesIn: ['texto', 'imagen'],
     modalidadesOut: ['texto'],
     consumo: {
-      dia: { tokensIn: 720000, tokensOut: 260000 },
-      semana: { tokensIn: 4400000, tokensOut: 1580000 },
+      dias: [
+        { tokensIn: 520000, tokensOut: 185000 },
+        { tokensIn: 590000, tokensOut: 210000 },
+        { tokensIn: 670000, tokensOut: 240000 },
+        { tokensIn: 710000, tokensOut: 255000 },
+        { tokensIn: 640000, tokensOut: 230000 },
+        { tokensIn: 550000, tokensOut: 200000 },
+        { tokensIn: 720000, tokensOut: 260000 },
+      ],
     },
   },
   {
@@ -80,8 +118,15 @@ const MODELOS = [
     modalidadesIn: ['audio'],
     modalidadesOut: ['texto'],
     consumo: {
-      dia: { tokensIn: 120000, tokensOut: 18000 },
-      semana: { tokensIn: 840000, tokensOut: 126000 },
+      dias: [
+        { tokensIn: 100000, tokensOut: 15000 },
+        { tokensIn: 118000, tokensOut: 18000 },
+        { tokensIn: 132000, tokensOut: 20000 },
+        { tokensIn: 128000, tokensOut: 19000 },
+        { tokensIn: 120000, tokensOut: 18000 },
+        { tokensIn: 122000, tokensOut: 18000 },
+        { tokensIn: 120000, tokensOut: 18000 },
+      ],
     },
   },
   {
@@ -93,8 +138,15 @@ const MODELOS = [
     modalidadesIn: [],
     modalidadesOut: ['imagen'],
     consumo: {
-      dia: { tokensIn: 0, tokensOut: 24000 },
-      semana: { tokensIn: 0, tokensOut: 168000 },
+      dias: [
+        { tokensIn: 0, tokensOut: 15000 },
+        { tokensIn: 0, tokensOut: 18000 },
+        { tokensIn: 0, tokensOut: 25000 },
+        { tokensIn: 0, tokensOut: 30000 },
+        { tokensIn: 0, tokensOut: 26000 },
+        { tokensIn: 0, tokensOut: 30000 },
+        { tokensIn: 0, tokensOut: 24000 },
+      ],
     },
   },
 ];
@@ -116,6 +168,38 @@ function calcularCoste(consumo, modelo) {
   if (!esNumero(consumo.tokensIn) || !esNumero(consumo.tokensOut)) return null;
   if (!esNumero(modelo.precioIn) || !esNumero(modelo.precioOut)) return null;
   return (consumo.tokensIn * modelo.precioIn + consumo.tokensOut * modelo.precioOut) / 1000000;
+}
+
+function diaCompleto(dia) {
+  return Boolean(dia) && esNumero(dia.tokensIn) && esNumero(dia.tokensOut);
+}
+
+function serieDe(modelo) {
+  const consumo = modelo && modelo.consumo;
+  if (!consumo || !Array.isArray(consumo.dias) || consumo.dias.length === 0) return null;
+  return consumo.dias;
+}
+
+// La ventana diaria es el último día de la serie. La semanal es la suma de todos.
+// Cada ventana degrada por separado: un día sin dato invalida la semana —que lo suma
+// todo— pero no el día actual, que sí tiene el suyo. Así la tabla nunca enseña una
+// suma que subestima el gasto sin avisar.
+function ventanas(modelo) {
+  const dias = serieDe(modelo);
+  if (!dias) return { dia: null, semana: null };
+  const ultimo = dias[dias.length - 1];
+  const dia = diaCompleto(ultimo) ? { tokensIn: ultimo.tokensIn, tokensOut: ultimo.tokensOut } : null;
+  if (!dias.every(diaCompleto)) return { dia, semana: null };
+  return {
+    dia,
+    semana: dias.reduce(
+      (total, diaActual) => ({
+        tokensIn: total.tokensIn + diaActual.tokensIn,
+        tokensOut: total.tokensOut + diaActual.tokensOut,
+      }),
+      { tokensIn: 0, tokensOut: 0 }
+    ),
+  };
 }
 
 function redondear(valor, decimales) {
@@ -184,13 +268,13 @@ function valorColumna(modelo, clave) {
     case 'ttftMs':
       return modelo.ttftMs;
     case 'tokensHoy':
-      return totalTokens(modelo.consumo.dia);
+      return totalTokens(ventanas(modelo).dia);
     case 'costeHoy':
-      return calcularCoste(modelo.consumo.dia, modelo);
+      return calcularCoste(ventanas(modelo).dia, modelo);
     case 'tokensSemana':
-      return totalTokens(modelo.consumo.semana);
+      return totalTokens(ventanas(modelo).semana);
     case 'costeSemana':
-      return calcularCoste(modelo.consumo.semana, modelo);
+      return calcularCoste(ventanas(modelo).semana, modelo);
     default:
       return null;
   }
@@ -417,10 +501,390 @@ function renderContador(visibles) {
   contador.textContent = visibles.length + ' de ' + MODELOS.length + ' modelos';
 }
 
+/* Gráficos
+ *
+ * Todo lo que se dibuja sale de `elementoSvg` y `textoSvg`: los elementos de
+ * gráfico nunca se crean con `document.createElement`, porque fuera del espacio
+ * de nombres SVG el navegador no los trata como formas. El color no se pasa
+ * desde aquí: cada serie se pinta con una clase y la paleta vive en el CSS.
+ *
+ * El cálculo de posiciones está separado del dibujado a propósito: son
+ * funciones puras que devuelven números y cadenas, y así se pueden comprobar
+ * sin abrir el navegador.
+ */
+
+const NS_SVG = 'http://www.w3.org/2000/svg';
+
+function elementoSvg(nombre, atributos) {
+  const elemento = document.createElementNS(NS_SVG, nombre);
+  if (!atributos) return elemento;
+  Object.keys(atributos).forEach(clave => {
+    const valor = atributos[clave];
+    if (valor === null || valor === undefined) return;
+    elemento.setAttribute(clave, String(valor));
+  });
+  return elemento;
+}
+
+function textoSvg(contenido, atributos) {
+  const texto = elementoSvg('text', atributos);
+  texto.textContent = contenido;
+  return texto;
+}
+
+function recortar(texto, maximo) {
+  return texto.length > maximo ? texto.slice(0, maximo - 1) + '…' : texto;
+}
+
+function vaciar(contenedor) {
+  contenedor.replaceChildren();
+}
+
+/* Gráfico de precios: una fila por modelo, con las barras de entrada y de
+ * salida apiladas en vertical y el valor rotulado al final de cada una. */
+
+const GRAFICO_PRECIOS = {
+  anchoMaximo: 880,
+  anchoMinimo: 360,
+  altoBarra: 11,
+  separacionBarras: 5,
+  separacionFilas: 16,
+  margenIzquierdo: 200,
+  margenDerecho: 104,
+  margenSuperior: 44,
+  margenInferior: 12,
+  // Un precio de cero real es un dato, no una ausencia: la barra no desaparece,
+  // se queda en un rasgo mínimo y el valor escrito al lado lo deja legible.
+  anchoMinimoBarra: 2,
+  caracteresNombre: 27,
+};
+
+function anchoDeTrazadoPrecios(config, ancho) {
+  return Math.max(60, ancho - config.margenIzquierdo - config.margenDerecho);
+}
+
+function escalaDePrecios(visibles) {
+  const maximo = visibles.reduce(
+    (mayor, modelo) =>
+      Math.max(
+        mayor,
+        esNumero(modelo.precioIn) ? modelo.precioIn : 0,
+        esNumero(modelo.precioOut) ? modelo.precioOut : 0
+      ),
+    0
+  );
+  return maximo > 0 ? maximo : 1;
+}
+
+function calcularLayoutPrecios(visibles, ancho) {
+  const config = GRAFICO_PRECIOS;
+  // La copia es obligatoria: `visibles` es la lista ordenada que usa la tabla y
+  // este gráfico tiene su propio criterio, el precio de salida.
+  const ordenados = visibles.slice().sort((uno, otro) => otro.precioOut - uno.precioOut);
+  const escala = escalaDePrecios(visibles);
+  const anchoTrazado = anchoDeTrazadoPrecios(config, ancho);
+  const altoFila = config.altoBarra * 2 + config.separacionBarras + config.separacionFilas;
+  const x = config.margenIzquierdo;
+
+  const barras = (modelo, clave, y) => {
+    const valor = esNumero(modelo[clave]) ? modelo[clave] : 0;
+    return {
+      serie: clave === 'precioIn' ? 'entrada' : 'salida',
+      etiqueta: formatearPrecio(modelo[clave]),
+      y,
+      // Acotado por el ancho del trazado, nunca por el del bloque.
+      ancho: Math.max(config.anchoMinimoBarra, (valor / escala) * anchoTrazado),
+    };
+  };
+
+  const filas = ordenados.map((modelo, indice) => {
+    const y = config.margenSuperior + indice * altoFila;
+    return {
+      modelo,
+      nombre: recortar(modelo.nombre, config.caracteresNombre),
+      y,
+      barras: [
+        barras(modelo, 'precioIn', y),
+        barras(modelo, 'precioOut', y + config.altoBarra + config.separacionBarras),
+      ],
+    };
+  });
+
+  return {
+    config,
+    filas,
+    x,
+    anchoTrazado,
+    escala,
+    ancho,
+    alto: config.margenSuperior + filas.length * altoFila + config.margenInferior,
+  };
+}
+
+function anchoDisponible(contenedor, config) {
+  const medido = contenedor.clientWidth;
+  const disponible = esNumero(medido) && medido > 0 ? medido : config.anchoMaximo;
+  return Math.round(Math.max(config.anchoMinimo, Math.min(disponible, config.anchoMaximo)));
+}
+
+function renderLeyendaPrecios(layout) {
+  const grupo = elementoSvg('g', { class: 'grafico-leyenda' });
+  [
+    { serie: 'entrada', texto: 'Entrada', x: 0 },
+    { serie: 'salida', texto: 'Salida', x: 96 },
+  ].forEach(item => {
+    grupo.appendChild(
+      elementoSvg('rect', {
+        class: 'leyenda-muestra leyenda-muestra--' + item.serie,
+        x: item.x,
+        y: layout.config.margenSuperior - 26,
+        width: 10,
+        height: 10,
+        rx: 2,
+      })
+    );
+    grupo.appendChild(
+      textoSvg(item.texto, {
+        class: 'leyenda-texto',
+        x: item.x + 16,
+        y: layout.config.margenSuperior - 17,
+      })
+    );
+  });
+  return grupo;
+}
+
+function renderFilaPrecios(fila, layout) {
+  const grupo = elementoSvg('g', { class: 'grafico-fila' });
+  grupo.appendChild(
+    textoSvg(fila.nombre, { class: 'fila-nombre', x: 0, y: fila.y + layout.config.altoBarra * 0.8 })
+  );
+  fila.barras.forEach(barra => {
+    grupo.appendChild(
+      elementoSvg('rect', {
+        class: 'barra-precio barra-precio--' + barra.serie,
+        x: layout.x,
+        y: barra.y,
+        width: Math.round(barra.ancho),
+        height: layout.config.altoBarra,
+        rx: 2,
+      })
+    );
+    grupo.appendChild(
+      textoSvg(barra.etiqueta, {
+        class: 'barra-valor',
+        x: layout.x + Math.round(barra.ancho) + 6,
+        y: barra.y + layout.config.altoBarra * 0.8,
+      })
+    );
+  });
+  return grupo;
+}
+
+function renderGraficoPrecios(contenedor, visibles) {
+  vaciar(contenedor);
+  if (visibles.length === 0) return;
+  const layout = calcularLayoutPrecios(visibles, anchoDisponible(contenedor, GRAFICO_PRECIOS));
+  const svg = elementoSvg('svg', {
+    class: 'svg-precios',
+    viewBox: '0 0 ' + layout.ancho + ' ' + layout.alto,
+    width: layout.ancho,
+    height: layout.alto,
+    role: 'img',
+    'aria-label': 'Precio por millón de tokens de entrada y de salida de cada modelo visible',
+  });
+  svg.appendChild(elementoSvg('title', {}));
+  svg.firstChild.textContent = 'Precio por 1M de tokens, por modelo';
+  svg.appendChild(renderLeyendaPrecios(layout));
+  layout.filas.forEach(fila => svg.appendChild(renderFilaPrecios(fila, layout)));
+  contenedor.appendChild(svg);
+}
+
+/* Paneles de consumo: un panel por modelo con su propia escala, apilando la
+ * entrada debajo de la salida, de modo que el contorno superior del área es el
+ * total del día. */
+
+const PANEL_CONSUMO = {
+  ancho: 300,
+  altoCabecera: 26,
+  altoTrazado: 96,
+  altoEje: 20,
+  margenIzquierdo: 18,
+  margenDerecho: 18,
+  caracteresNombre: 24,
+};
+
+function diasRelativos(cantidad) {
+  const etiquetas = [];
+  for (let indice = 0; indice < cantidad; indice += 1) {
+    const retroceso = cantidad - 1 - indice;
+    etiquetas.push(retroceso === 0 ? 'Hoy' : '-' + retroceso);
+  }
+  return etiquetas;
+}
+
+function maximoDeSerie(dias) {
+  const maximo = dias.reduce((mayor, dia) => {
+    if (!diaCompleto(dia)) return mayor;
+    return Math.max(mayor, dia.tokensIn + dia.tokensOut);
+  }, 0);
+  return maximo > 0 ? maximo : 1;
+}
+
+// Un día sin dato corta el trazado. Se agrupan los días con dato en tramos
+// consecutivos en lugar de inventar un cero: el hueco tiene que leerse como
+// ausencia, no como un día que no se consumió nada.
+function tramosDeSerie(dias) {
+  const tramos = [];
+  let inicio = 0;
+  for (let indice = 0; indice <= dias.length; indice += 1) {
+    const corta = indice === dias.length || !diaCompleto(dias[indice]);
+    if (!corta) continue;
+    if (indice > inicio) tramos.push({ desde: inicio, hasta: indice - 1 });
+    inicio = indice + 1;
+  }
+  return tramos;
+}
+
+function calcularLayoutPanel(modelo) {
+  const config = PANEL_CONSUMO;
+  const dias = serieDe(modelo) || [];
+  const yBase = config.altoCabecera + config.altoTrazado;
+  const anchoTrazado = config.ancho - config.margenIzquierdo - config.margenDerecho;
+  const paso = dias.length > 1 ? anchoTrazado / (dias.length - 1) : 0;
+  const ultimo = dias[dias.length - 1];
+  return {
+    config,
+    dias,
+    yBase,
+    paso,
+    maximo: maximoDeSerie(dias),
+    anchoTrazado,
+    totalHoy: diaCompleto(ultimo) ? ultimo.tokensIn + ultimo.tokensOut : null,
+    alto: yBase + config.altoEje,
+  };
+}
+
+// `d` de un área: se sube por el borde superior, se recorre y se cierra por el
+// borde inferior, que es el valor sobre el que se apoya.
+function areaTramo(puntos, ySuperior, yInferior) {
+  if (puntos.length === 0) return '';
+  const primero = puntos[0];
+  const ultimo = puntos[puntos.length - 1];
+  const superior = puntos.map(punto => 'L' + punto.x + ',' + punto.ySuperior).join(' ');
+  return [
+    'M' + primero.x + ',' + yInferior(primero),
+    superior,
+    'L' + ultimo.x + ',' + yInferior(ultimo),
+    'Z',
+  ].join(' ');
+}
+
+// Una sola `d` por serie con un subtrazo por tramo, de forma que un panel tiene
+// dos elementos de trazo y no uno por día.
+function trazadosDeSerie(dias, layout) {
+  const yDe = valor => layout.yBase - (valor / layout.maximo) * layout.config.altoTrazado;
+  const tramos = tramosDeSerie(dias);
+  const xDe = indice => layout.config.margenIzquierdo + indice * layout.paso;
+  const tramosEntrada = [];
+  const tramosSalida = [];
+  tramos.forEach(tramo => {
+    const puntos = [];
+    for (let indice = tramo.desde; indice <= tramo.hasta; indice += 1) {
+      const dia = dias[indice];
+      puntos.push({ x: xDe(indice), yEntrada: yDe(dia.tokensIn), yTotal: yDe(dia.tokensIn + dia.tokensOut) });
+    }
+    tramosEntrada.push(areaTramo(puntos, punto => punto.yEntrada, () => layout.yBase));
+    tramosSalida.push(areaTramo(puntos, punto => punto.yTotal, punto => punto.yEntrada));
+  });
+  return { entrada: tramosEntrada.join(' '), salida: tramosSalida.join(' ') };
+}
+
+function renderPanelConsumo(modelo) {
+  const layout = calcularLayoutPanel(modelo);
+  const config = layout.config;
+  const svg = elementoSvg('svg', {
+    class: 'svg-panel',
+    viewBox: '0 0 ' + config.ancho + ' ' + layout.alto,
+    width: config.ancho,
+    height: layout.alto,
+    role: 'img',
+    'aria-label': 'Consumo diario de ' + modelo.nombre + ' durante los últimos siete días',
+  });
+  const titulo = elementoSvg('title', {});
+  titulo.textContent = modelo.nombre;
+  svg.appendChild(titulo);
+
+  svg.appendChild(
+    textoSvg(recortar(modelo.nombre, config.caracteresNombre), {
+      class: 'panel-nombre',
+      x: 0,
+      y: 15,
+    })
+  );
+  svg.appendChild(
+    textoSvg(layout.totalHoy === null ? SIN_VALOR : formatearTokens(layout.totalHoy), {
+      class: 'panel-total',
+      x: config.ancho,
+      y: 15,
+      'text-anchor': 'end',
+    })
+  );
+
+  svg.appendChild(
+    elementoSvg('line', {
+      class: 'panel-base',
+      x1: config.margenIzquierdo,
+      y1: layout.yBase,
+      x2: config.margenIzquierdo + layout.anchoTrazado,
+      y2: layout.yBase,
+    })
+  );
+
+  const trazados = trazadosDeSerie(layout.dias, layout);
+  svg.appendChild(elementoSvg('path', { class: 'area-area area-area--entrada', d: trazados.entrada }));
+  svg.appendChild(elementoSvg('path', { class: 'area-area area-area--salida', d: trazados.salida }));
+
+  diasRelativos(layout.dias.length).forEach((etiqueta, indice) => {
+    svg.appendChild(
+      textoSvg(etiqueta, {
+        class: 'panel-eje',
+        x: config.margenIzquierdo + indice * layout.paso,
+        y: layout.yBase + 14,
+        'text-anchor': 'middle',
+      })
+    );
+  });
+
+  return svg;
+}
+
+function renderPanelesConsumo(contenedor, visibles) {
+  vaciar(contenedor);
+  if (visibles.length === 0) return;
+  // El orden de la rejilla es el del conjunto de datos, no el que tenga la
+  // tabla, que llega ordenada por la columna activa.
+  const porIdDeDatos = new Map(MODELOS.map((modelo, indice) => [modelo.id, indice]));
+  visibles
+    .slice()
+    .sort((uno, otro) => porIdDeDatos.get(uno.id) - porIdDeDatos.get(otro.id))
+    .forEach(modelo => contenedor.appendChild(renderPanelConsumo(modelo)));
+}
+
+function renderGraficos(visibles) {
+  const bloque = document.getElementById('bloque-graficos');
+  // El bloque desaparece entero cuando no queda ningún modelo, en vez de
+  // dejar un hueco vacío con los dos gráficos dentro.
+  bloque.hidden = visibles.length === 0;
+  renderGraficoPrecios(document.getElementById('grafico-precios'), visibles);
+  renderPanelesConsumo(document.getElementById('paneles-consumo'), visibles);
+}
+
 function render() {
   const visibles = modelosVisibles();
   renderContador(visibles);
   renderTabla(document.getElementById('tabla-modelos'), visibles);
+  renderGraficos(visibles);
 }
 
 const orden = { columna: null, direccion: 'asc' };

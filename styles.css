@@ -18,6 +18,15 @@
   --badge-audio-texto: #8a5a17;
   --badge-video-fondo: #f3e2ec;
   --badge-video-texto: #7c3660;
+  /* Paleta de series de los gráficos. Deliberadamente separada de los badges:
+   * allí el color significa modalidad (Texto, Imagen, Audio, Video) y aquí
+   * significa dirección del flujo (entrada, salida). Reutilizar los mismos
+   * colores daría dos significados a un mismo color en la misma pantalla.
+   * Entre las dos hay salto de luminancia (0.095 y 0.550 en sRGB relativo) para
+   * que se distingan también en escala de grises y con daltonismo. */
+  --serie-entrada: #3d5a73;
+  --serie-salida: #9fc9e8;
+  --rejilla-linea: #eceff3;
 }
 
 * {
@@ -126,6 +135,136 @@ body {
   color: var(--texto-suave);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+}
+
+/* Bloque de gráficos: dos tarjetas, la de precios y la de paneles de consumo. */
+
+.bloque-graficos {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.bloque-graficos[hidden] {
+  display: none;
+}
+
+.grafico-panel {
+  padding: 14px 16px 16px;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+}
+
+.grafico-titulo {
+  margin: 0 0 2px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.grafico-pie {
+  margin: 0 0 12px;
+  color: var(--texto-suave);
+  font-size: 12px;
+}
+
+.grafico-lienzo {
+  overflow-x: auto;
+}
+
+/* Gráfico de precios. El ancho lo fija el cálculo en `app.js` y está acotado,
+ * así que la tarjeta no estira el trazado ni las barras. */
+
+.svg-precios {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.fila-nombre {
+  fill: var(--texto);
+  font-size: 12px;
+}
+
+.leyenda-texto {
+  fill: var(--texto-suave);
+  font-size: 11px;
+}
+
+.leyenda-muestra--entrada {
+  fill: var(--serie-entrada);
+}
+
+.leyenda-muestra--salida {
+  fill: var(--serie-salida);
+}
+
+.barra-precio--entrada {
+  fill: var(--serie-entrada);
+}
+
+.barra-precio--salida {
+  fill: var(--serie-salida);
+}
+
+/* Las barras van muy juntas: el valor se lee en el texto, no en la forma. */
+.barra-valor {
+  fill: var(--texto-suave);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Paneles de consumo. Cuatro columnas fijas con alineación a la izquierda: al
+ * filtrar, la última fila se queda a la izquierda en vez de repartirse. */
+
+.rejilla-paneles {
+  display: grid;
+  grid-template-columns: repeat(4, 300px);
+  justify-content: start;
+  gap: 14px;
+}
+
+.svg-panel {
+  display: block;
+  width: 300px;
+  max-width: 100%;
+  height: auto;
+  padding: 6px 8px 4px;
+  border: 1px solid var(--borde);
+  border-radius: 5px;
+  background: var(--superficie);
+}
+
+.panel-nombre {
+  fill: var(--texto);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Valor absoluto del día, no una proporción: es la lectura rápida. */
+.panel-total {
+  fill: var(--texto);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.panel-eje {
+  fill: var(--texto-suave);
+  font-size: 9px;
+}
+
+.panel-base {
+  stroke: var(--rejilla-linea);
+  stroke-width: 1;
+}
+
+.area-area--entrada {
+  fill: var(--serie-entrada);
+}
+
+.area-area--salida {
+  fill: var(--serie-salida);
 }
 
 .tabla-contenedor {

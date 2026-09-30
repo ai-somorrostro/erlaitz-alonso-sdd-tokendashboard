@@ -36,10 +36,36 @@ Cuando ningún modelo cumple los criterios, la tabla no se queda en blanco: las 
 
 Un guion largo (`—`) significa que no hay dato para ese modelo, no que falle la carga.
 
+## Gráficos
+
+Sobre la tabla hay dos gráficos, dibujados con SVG sin ninguna librería.
+
+### Precio por 1M de tokens
+
+Una fila por modelo con dos barras, la de entrada y la de salida. Las barras comparten una escala lineal, de modo que sus longitudes son comparables entre sí, y **el valor se lee junto a cada barra** en lugar de medirse a ojo: un precio pequeño sigue siendo legible aunque su barra sea un rasgo. Las filas van de mayor a menor precio de salida, con su propio criterio, independiente del de la tabla.
+
+El trazado tiene un ancho máximo fijo y no se estira al ancho del bloque, así que el gráfico mantiene la proporción de las barras en pantallas anchas.
+
+### Evolución del consumo
+
+Un panel por modelo con los últimos siete días, la entrada y la salida apiladas: el contorno superior del área es el total del día. La cabecera lleva el nombre del modelo y **el valor absoluto de tokens de hoy**, que es la lectura rápida; el eje va con días relativos (`-6` … `-1`, `Hoy`) y nunca con fechas concretas, así que recargar no cambia las etiquetas.
+
+Cada panel se normaliza contra su propio máximo, sin eje compartido. Los consumos del conjunto difieren en dos órdenes de magnitud, de modo que un eje común reduciría los paneles pequeños a una línea plana pegada al borde inferior; normalizando se leen todos con el mismo detalle.
+
+Si un día no tiene dato, el trazado se interrumpe y el día queda como hueco, sin unir el anterior con el siguiente. Es distinto de un día con valor cero real, que sí dibuja su serie en el borde: en el panel de un modelo que consume tokens, un día sin dato no es un día sin consumo.
+
+### Filtros
+
+Los dos gráficos siguen los mismos filtros que la tabla y se reducen a la vez que las filas. Ordenar la tabla no reordena la rejilla de paneles, que conserva el orden del conjunto de datos. Cuando ningún modelo supera los filtros, el bloque entero se oculta y la tabla muestra su estado vacío.
+
 ## Ficheros
 
 - `index.html` — estructura de la página
 - `styles.css` — estilos
-- `app.js` — datos de prueba, cálculos de formato, ordenación y filtrado
+- `app.js` — datos de prueba, cálculos de formato, ordenación, filtrado y dibujado de los gráficos
 
 Los datos viven en el array `MODELOS` de `app.js`. El coste nunca se almacena: se calcula siempre a partir de los tokens consumidos y del precio por millón, así que cambiar un precio actualiza todos los importes.
+
+El consumo se guarda como una serie de siete días por modelo, no como dos totales. Las columnas de la tabla se derivan de esa serie: la ventana diaria es el último día y la semanal es su suma. Un día sin dato invalida la semana, que lo suma todo, pero no el día actual, que sí tiene el suyo; por eso un modelo puede mostrar el consumo de hoy y dejar la semana en `—`.
+
+Los colores de los gráficos se definen en `styles.css` con `--serie-entrada` y `--serie-salida`, aparte de los `--badge-*`, que ya significan modalidad. Cada serie tiene además una diferencia de luminancia suficiente para distinguirse en escala de grises.

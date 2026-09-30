@@ -34,6 +34,20 @@
       <span id="contador-modelos" class="contador-modelos" aria-live="polite"></span>
     </div>
 
+    <section class="bloque-graficos" id="bloque-graficos" hidden aria-label="Gráficos comparativos">
+      <div class="grafico-panel">
+        <h2 class="grafico-titulo">Precio por 1M de tokens</h2>
+        <p class="grafico-pie">Barras de entrada y salida sobre una escala común. El valor se lee junto a cada barra.</p>
+        <div class="grafico-lienzo" id="grafico-precios"></div>
+      </div>
+
+      <div class="grafico-panel">
+        <h2 class="grafico-titulo">Evolución del consumo</h2>
+        <p class="grafico-pie">Un panel por modelo con su propia escala, apilando entrada y salida. El hueco es un día sin dato.</p>
+        <div class="rejilla-paneles" id="paneles-consumo"></div>
+      </div>
+    </section>
+
     <div class="tabla-contenedor">
       <table class="tabla-modelos" id="tabla-modelos"></table>
     </div>
